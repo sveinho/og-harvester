@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Decision Tree – Mermaid</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    });
+  </script>
+  <style>
+    body{font-family:sans-serif;margin:2rem;background:#fafafa}
+    .mermaid{background:#fff;border:1px solid #ddd;border-radius:8px;padding:1rem}
+  </style>
+</head>
+<body>
+<h1>Decision Tree</h1>
+<div class="mermaid">
+graph TD
+    A[Start] --> B{Raining?}
+    B -- Yes --> C[Take umbrella]
+    B -- No  --> D{Cold?}
+    D -- Yes --> E[Wear coat]
+    D -- No  --> F[Enjoy sunshine]
+    C --> G[Go outside]
+    E --> G
+    F --> G
+</div>
+</body>
+</html>
