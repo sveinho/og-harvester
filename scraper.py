@@ -17,17 +17,17 @@ def run_scraper():
 
     # Parse HTML with BeautifulSoup
     soup = BeautifulSoup(response.text, "html.parser")
-    quotes = soup.find_all("div", class_="quote")
+    edens = soup.find_all("div", class_="eden")
     
     # Prepare data storage
-    file_exists = os.path.isfile("scraped_quotes.csv")
+    file_exists = os.path.isfile("scraped_edens.csv")
     
-    with open("scraped_quotes.csv", mode="a", newline="", encoding="utf-8") as file:
+    with open("scraped_edens.csv", mode="a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         if not file_exists:
-            writer.writerow(["Timestamp", "Quote", "Author"]) # Header
+            writer.writerow(["Timestamp", "Edens", "Author"]) # Header
             
-        for q in quotes:
+        for q in edens:
             text = q.find("span", class_="text").text
             author = q.find("small", class_="author").text
             writer.writerow([datetime.now().isoformat(), text, author])
