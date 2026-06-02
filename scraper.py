@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 def run_scraper():
     # URL to scrape
-    url = "https://gist.githubusercontent.com/sveinho/515822d919321459357b59621c8fa89e/raw/34cdf525bbc8f854feee4b18df694998034f0d84/gistfile1.html"
+    url = "https://gist.githubusercontent.com/sveinho/515822d919321459357b59621c8fa89e/raw/34cdf525bbc8f854feee4b18df694998034f0d84/eden.html"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     
     # Fetch web page content
