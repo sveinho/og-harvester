@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Graph Harvester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Open Graph Metadata Harvester</h1>
+        
+        <div>
+            <label for="urlInput">Enter URL:</label>
+            <input 
+                type="url" 
+                id="urlInput" 
+                placeholder="https://example.com"
+                value="https://ogp.me/"
+            >
+        </div>
+
+        <button onclick="harvestOG()">Harvest OG Metadata</button>
+        <button onclick="downloadJSON()">Download JSON</button>
+        <button onclick="clearResults()">Clear</button>
+
+        <div id="status"></div>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let harvestedData = [];
+
+        async function harvestOG() {
+            const url = document.getElementById('urlInput').value;
+            const statusEl = document.getElementById('status');
+            const resultsEl = document.getElementById('results');
+
+            if (!url) {
+                statusEl.className = 'status error';
+                statusEl.textContent = 'Please enter a URL';
+                return;
+            }
+
+            try {
+                statusEl.className = 'status';
+                statusEl.textContent = 'Loading...';
+
+                // Fetch the page
+                const response = await fetch(url);
+                const html = await response.text();
+
+                // Parse HTML
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                // Extract Open Graph metadata
+                const ogData = extractOpenGraphData(doc, url);
+
+                // Add to harvested data array
+                harvestedData.push(ogData);
+
+                // Display results
+                resultsEl.textContent = JSON.stringify(harvestedData, null, 2);
+
+                statusEl.className = 'status success';
+                statusEl.textContent = `✓ Successfully harvested OG data from ${url}`;
+
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = `Error: ${error.message}`;
+                console.error('Error:', error);
+            }
+        }
+
+        function extractOpenGraphData(doc, url) {
+            const ogMeta = {};
+            ogMeta.url = url;
+            ogMeta.harvestedAt = new Date().toISOString();
+            ogMeta.openGraph = {};
+
+            // Get all meta tags
+            const metaTags = doc.querySelectorAll('meta[property^="og:"]');
+
+            metaTags.forEach(tag => {
+                const property = tag.getAttribute('property');
+                const content = tag.getAttribute('content');
+                
+                if (property && content) {
+                    // Remove "og:" prefix
+                    const key = property.replace('og:', '');
+                    ogMeta.openGraph[key] = content;
+                }
+            });
+
+            // Also capture standard meta tags
+            ogMeta.standard = {};
+            const standardTags = ['title', 'description', 'keywords', 'author'];
+            
+            standardTags.forEach(tag => {
+                const metaTag = doc.querySelector(`meta[name="${tag}"]`);
+                if (metaTag) {
+                    ogMeta.standard[tag] = metaTag.getAttribute('content');
+                }
+            });
+
+            return ogMeta;
+        }
+
+        function downloadJSON() {
+            if (harvestedData.length === 0) {
+                alert('No data to download. Harvest some metadata first!');
+                return;
+            }
+
+            const dataStr = JSON.stringify(harvestedData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `og-metadata-${new Date().getTime()}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            document.getElementById('status').className = 'status success';
+            document.getElementById('status').textContent = '✓ JSON file downloaded';
+        }
+
+        function clearResults() {
+            harvestedData = [];
+            document.getElementById('results').textContent = '';
+            document.getElementById('status').textContent = '';
+        }
+    </script>
+</body>
+</html>
