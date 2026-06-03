@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <title>Min Fasetterte Katalog</title>
+    <style>
+        body { font-family: sans-serif; display: grid; grid-template-columns: 250px 1fr; gap: 20px; padding: 20px; }
+        aside { border-right: 1px solid #ccc; padding-right: 20px; }
+        .filter-group { margin-bottom: 20px; }
+        .filter-group h3 { margin-bottom: 5px; }
+        label { display: block; margin: 5px 0; cursor: pointer; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+        .card { border: 1px solid #ddd; padding: 15px; border-radius: 5px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); }
+        .count { color: #888; font-size: 0.9em; margin-left: 5px; }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR: FILTRE (FACETS) -->
+    <aside>
+        <h2>Filtre</h2>
+        
+        <div class="filter-group">
+            <h3>Søk</h3>
+            <input type="text" id="search-input" placeholder="Søk i katalogen...">
+        </div>
+
+        <div class="filter-group">
+            <h3>Kategori</h3>
+            <div id="category-filters"></div>
+        </div>
+
+        <div class="filter-group">
+            <h3>Merke</h3>
+            <div id="brand-filters"></div>
+        </div>
+    </aside>
+
+    <!-- HOVEDOMRÅDE: RESULTATER -->
+    <main>
+        <h2 id="result-count">Laster katalog...</h2>
+        <div id="catalog-grid" class="grid"></div>
+    </main>
+
+    <script>
+        // 1. Rådataene (I et ekte prosjekt kan dette lastes inn med fetch('data.json'))
+        const katalogData = [
+            { id: 1, navn: "Skinnjakke Pro", kategori: "Klær", merke: "Zara", pris: 1200 },
+            { id: 2, navn: "Basic T-skjorte", kategori: "Klær", merke: "H&M", pris: 200 },
+            { id: 3, navn: "Air Max Joggesko", kategori: "Sko", merke: "Nike", pris: 1500 },
+            { id: 4, navn: "Fjellsko Robust", kategori: "Sko", merke: "Alfa", pris: 2500 },
+            { id: 5, navn: "Løpesko Lett", kategori: "Sko", merke: "Nike", pris: 900 },
+            { id: 6, navn: "Strikkegenser", kategori: "Klær", merke: "Zara", pris: 600 }
+        ];
+
+        // 2. State for å holde styr på hva brukeren har valgt
+        const aktiveFiltre = {
+            søk: "",
+            kategorier: new Set(),
+            merker: new Set()
+        };
+
+        // 3. Hovedfunksjon for filtrering og tegning av siden
+        function oppdaterKatalog() {
+            // A. Filtrer dataene basert på state
+            const filtrerteElementer = katalogData.filter(item => {
+                const matcherSøk = item.navn.toLowerCase().includes(aktiveFiltre.søk.toLowerCase());
+                const matcherKategori = aktiveFiltre.kategorier.size === 0 || aktiveFiltre.kategorier.has(item.kategori);
+                const matcherMerke = aktiveFiltre.merker.size === 0 || aktiveFiltre.merker.has(item.merke);
+                
+                return matcherSøk && matcherKategori && matcherMerke;
+            });
+
+            // B. Tegn produktene på skjermen
+            const grid = document.getElementById("catalog-grid");
+            grid.innerHTML = filtrerteElementer.map(item => `
+                <div class="card">
+                    <h4>${item.navn}</h4>
+                    <p><strong>${item.merke}</strong> (${item.kategori})</p>
+                    <p>${item.pris} kr</p>
+                </div>
+            `).join("");
+
+            document.getElementById("result-count").innerText = `${filtrerteElementer.length} treff`;
+
+            // C. Generer og oppdater filter-knappene med dynamiske "facet counts"
+            tegnFilterBokser("category-filters", "kategori", aktiveFiltre.kategorier, filtrerteElementer);
+            tegnFilterBokser("brand-filters", "merke", aktiveFiltre.merker, filtrerteElementer);
+        }
+
+        // 4. Hjelpefunksjon for å tegne opp filter-avhukingsboksene med antall treff
+        function tegnFilterBokser(elementId, feltNavn, aktivSet, gjeldendeData) {
+            const container = document.getElementById(elementId);
+            
+            // Finn alle unike verdier i hele datasettet for denne fasetten
+            const alleUnikeVerdier = [...new Set(katalogData.map(item => item[feltNavn]))];
+
+            container.innerHTML = alleUnikeVerdier.map(verdi => {
+                // Beregn hvor mange treff denne verdien har akkurat nå i det filtrerte datasettet
+                const antallTreff = gjeldendeData.filter(item => item[feltNavn] === verdi).length;
+                const erAvhuket = aktivSet.has(verdi) ? "checked" : "";
+
+                return `
+                    <label>
+                        <input type="checkbox" data-felt="${feltNavn}" value="${verdi}" ${erAvhuket} onchange="handterFilterEndring(this)">
+                        ${verdi} <span class="count">(${antallTreff})</span>
+                    </label>
+                `;
+            }).join("");
+        }
+
+        // 5. Lytt til endringer i filtrene
+        function handterFilterEndring(checkbox) {
+            const felt = checkbox.dataset.felt;
+            const verdi = checkbox.value;
+            const targetSet = felt === "kategori" ? aktiveFiltre.kategorier : aktiveFiltre.merker;
+
+            if (checkbox.checked) {
+                targetSet.add(verdi);
+            } else {
+                targetSet.delete(verdi);
+            }
+            oppdaterKatalog();
+        }
+
+        // Lytt til søkefeltet
+        document.getElementById("search-input").addEventListener("input", (e) => {
+            aktiveFiltre.søk = e.target.value;
+            oppdaterKatalog();
+        });
+
+        // Start appen ved første innlasting
+        oppdaterKatalog();
+    </script>
+</body>
+</html>
