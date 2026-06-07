@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAIRiCat Metadata Harvester</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #333; }
+        h1 { color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 0.5rem; }
+        .input-group { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+        input[type="url"] { flex: 1; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+        button { padding: 0.5rem 1rem; background: #0056b3; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
+        button:hover { background: #004085; }
+        .status { padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; display: none; }
+        .error { background: #f8d7da; color: #721c24; display: block; }
+        .info { background: #e2e3e5; color: #383d41; display: block; }
+        .success { background: #d4edda; color: #155724; display: block; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+        th { background-color: #f2f2f2; }
+        pre { background: #f8f9fa; padding: 1rem; border-radius: 4px; overflow-x: auto; border: 1px solid #e9ecef; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+    <h1>FAIRiCat Metadata Harvester</h1>
+    <p>Discover and harvest FAIRiCat interoperability affordances from a repository target URL.</p>
+
+    <div class="input-group">
+        <input type="url" id="repoUrl" placeholder="https://repository.org" required>
+        <button id="harvestBtn">Harvest</button>
+    </div>
+
+    <div id="statusBox" class="status"></div>
+
+    <h2>Discovered Affordances</h2>
+    <table id="affordanceTable">
+        <thead>
+            <tr>
+                <th>Context Anchor (Resource)</th>
+                <th>Affordance Type / Profile</th>
+                <th>Target Endpoint (HREF)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="3" style="text-align:center; color:#777;">No data harvested yet.</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Raw FAIRiCat Link Set JSON</h2>
+    <pre id="rawOutput">{}</pre>
+
+    <script>
+        document.getElementById('harvestBtn').addEventListener('click', async () => {
+            const repoUrl = document.getElementById('repoUrl').value.trim();
+            const statusBox = document.getElementById('statusBox');
+            const tableBody = document.querySelector('#affordanceTable tbody');
+            const rawOutput = document.getElementById('rawOutput');
+
+            if (!repoUrl) {
+                showStatus('Please enter a valid URL.', 'error');
+                return;
+            }
+
+            showStatus('Step 1: Inspecting HTTP headers for api-catalog relation...', 'info');
+            tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">Harvesting...</td></tr>`;
+            rawOutput.textContent = '{}';
+
+            try {
+                // Step 1: Issue a HEAD/GET request to look for the 'api-catalog' link header
+                // Note: The repository must allow CORS requests for this client-side scraper to work.
+                const response = await fetch(repoUrl, { method: 'HEAD' });
+                const linkHeader = response.headers.get('Link');
+
+                let fairicatUrl = null;
+                if (linkHeader) {
+                    fairicatUrl = parseLinkHeaderForFairiCat(linkHeader);
+                }
+
+                // Fallback: If no HEAD link header, try a GET request to scan response links
+                if (!fairicatUrl) {
+                    showStatus('No link header in HEAD request. Trying GET request...', 'info');
+                    const getResponse = await fetch(repoUrl, { method: 'GET' });
+                    const getLinkHeader = getResponse.headers.get('Link');
+                    if (getLinkHeader) {
+                        fairicatUrl = parseLinkHeaderForFairiCat(getLinkHeader);
+                    }
+                }
+
+                if (!fairicatUrl) {
+                    throw new Error('Could not find a Link header with rel="api-catalog" and type="application/linkset+json".');
+                }
+
+                // Step 2: Fetch the actual FAIRiCat catalog file
+                showStatus(`Step 2: Found FAIRiCat URL! Fetching Link Set from: ${fairicatUrl}`, 'info');
+                const catResponse = await fetch(fairicatUrl);
+                if (!catResponse.ok) {
+                    throw new Error(`Failed to fetch catalog content. Status: ${catResponse.status}`);
+                }
+
+                const linksetJson = await catResponse.json();
+                rawOutput.textContent = JSON.stringify(linksetJson, null, 2);
+
+                // Step 3: Parse and render the catalog fields
+                renderCatalog(linksetJson);
+                showStatus('Successfully harvested FAIRiCat metadata!', 'success');
+
+            } catch (error) {
+                showStatus(`Harvester Error: ${error.message}`, 'error');
+                tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:red;">Harvest failed.</td></tr>`;
+            }
+        });
+
+        // Helper function to extract the fairicat link via regex parsing of the Link Header
+        function parseLinkHeaderForFairiCat(headerString) {
+            // Looks for patterns like: <url>; rel="api-catalog"; type="application/linkset+json"
+            const parts = headerString.split(',');
+            for (let part of parts) {
+                if (part.includes('rel="api-catalog"') || part.includes("rel='api-catalog'")) {
+                    const match = part.match(/<([^>]+)>/);
+                    if (match) return match[1];
+                }
+            }
+            return null;
+        }
+
+        // Helper function to populate the HTML UI table with standard metadata entries
+        function renderCatalog(data) {
+            const tableBody = document.querySelector('#affordanceTable tbody');
+            tableBody.innerHTML = '';
+
+            if (!data.linkset || !Array.isArray(data.linkset)) {
+                tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:orange;">Invalid FAIRiCat structure: missing 'linkset' array.</td></tr>`;
+                return;
+            }
+
+            data.linkset.forEach(entry => {
+                const anchor = entry.anchor || 'Repository Root';
+                
+                // Iterate over keys that aren't the anchor, as they represent the affordance types
+                Object.keys(entry).forEach(key => {
+                    if (key === 'anchor') return;
+
+                    if (Array.isArray(entry[key])) {
+                        entry[key].forEach(endpoint => {
+                            const tr = document.createElement('tr');
+                            
+                            const tdAnchor = document.createElement('td');
+                            tdAnchor.textContent = anchor;
+                            
+                            const tdType = document.createElement('td');
+                            // Combine key relation (e.g., service-doc) with type/profile info if available
+                            const details = [];
+                            if (endpoint.type) details.push(`Type: ${endpoint.type}`);
+                            if (endpoint.profile) details.push(`Profile: ${endpoint.profile}`);
+                            tdType.innerHTML = `<strong>${key}</strong>${details.length ? '<br><small>' + details.join(', ') + '</small>' : ''}`;
+                            
+                            const tdHref = document.createElement('td');
+                            const a = document.createElement('a');
+                            a.href = endpoint.href;
+                            a.target = '_blank';
+                            a.textContent = endpoint.title || endpoint.href;
+                            tdHref.appendChild(a);
+
+                            tr.appendChild(tdAnchor);
+                            tr.appendChild(tdType);
+                            tr.appendChild(tdHref);
+                            tableBody.appendChild(tr);
+                        });
+                    }
+                });
+            });
+
+            if (tableBody.children.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No valid interoperability records found in the linkset.</td></tr>`;
+            }
+        }
+
+        function showStatus(msg, type) {
+            const box = document.getElementById('statusBox');
+            box.className = `status ${type}`;
+            box.textContent = msg;
+        }
+    </script>
+</body>
+</html>
