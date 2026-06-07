@@ -1,0 +1,67 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://my.repo.org/oaipmh",
+      "service-doc": [
+        {
+          "href": "https://www.openarchives.org/OAI/openarchivesprotocol.html",
+          "type": "text/html",
+          "title": "Open Archives Initiative - Protocol for Metadata Harvesting - v.2.0"
+        }
+      ],
+      "service-meta": [
+        {
+          "href": "https://my.repo.org/oaipmh?verb=Identify",
+          "type": "application/xml"
+        }
+      ]
+    },
+    {
+      "anchor": "https://my.repo.org/sitemap/index.xml",
+      "service-doc": [
+        {
+          "href": "https://www.sitemaps.org/protocol.html",
+          "type": "text/html",
+          "title": "sitemaps.org - Protocol"
+        }
+      ]
+    },
+    {
+      "anchor": "https://triplestore.netwerkdigitaalerfgoed.nl/sparql",
+      "service-doc": [
+        {
+          "href": "https://www.w3.org/TR/sparql11-query/",
+          "type": "text/html",
+          "title": "SPARQL 1.1 Query Language"
+        }
+      ],
+      "service-meta": [
+        {
+          "href": "https://my.repo.org/sparql11/description.xml",
+          "type": "application/rdf+xml"
+        }
+      ]
+    },
+    {
+      "anchor": "https://my.repo.org/api",
+      "service-desc": [
+        {
+          "href": "https://my.repo.org/api/openapi.yml",
+          "type": "application/yaml"
+        }
+      ],
+      "service-doc": [
+        {
+          "href": "https://spec.openapis.org/oas/v3.1.0",
+          "type": "text/html",
+          "title": "OpenAPI Specification v3.1.0"
+        },
+        {
+          "href": "https://my.repo.org/api/api-specification.html",
+          "type": "text/html",
+          "title": "My Repo API"
+        }
+      ]
+    }
+  ]
+}
