@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hex File Identifier</title>
+</head>
+<body>
+
+    <h3>Upload a file to detect its real format:</h3>
+    <input type="file" id="fileInput" />
+    
+    <p><strong>Detected Hex:</strong> <span id="hexOutput">-</span></p>
+    <p><strong>Identified Format:</strong> <span id="formatOutput">Unknown</span></p>
+
+    <script>
+        // Dictionary of common file signatures (Magic Numbers)
+        const FILE_SIGNATURES = {
+            "89504E47": "PNG Image",
+            "FFD8FFE0": "JPEG Image (JFIF)",
+            "FFD8FFE1": "JPEG Image (EXIF)",
+            "47494638": "GIF Image",
+            "25504446": "PDF Document",
+            "504B0304": "ZIP Archive / Modern Office Doc (DOCX/XLSX)",
+            "4D5A": "Windows Executable (EXE)"
+        };
+
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            // Read only the first 4 bytes (enough for most basic formats)
+            const blob = file.slice(0, 4);
+            reader.readAsArrayBuffer(blob);
+
+            reader.onloadend = function(e) {
+                if (e.target.readyState === FileReader.DONE) {
+                    const arrayBuffer = e.target.result;
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    
+                    // Convert bytes to a Hexadecimal string
+                    let hexString = "";
+                    uint8Array.forEach(byte => {
+                        hexString += byte.toString(16).toUpperCase().padStart(2, '0');
+                    });
+
+                    // Update UI with the hex string
+                    document.getElementById('hexOutput').textContent = hexString;
+
+                    // Match against our dictionary
+                    let format = "Unknown Format";
+                    
+                    // Check full 4-byte match
+                    if (FILE_SIGNATURES[hexString]) {
+                        format = FILE_SIGNATURES[hexString];
+                    } else {
+                        // Check partial 2-byte match (like EXE '4D5A')
+                        const shortHex = hexString.substring(0, 4);
+                        if (FILE_SIGNATURES[shortHex]) {
+                            format = FILE_SIGNATURES[shortHex];
+                        }
+                    }
+
+                    document.getElementById('formatOutput').textContent = format;
+                }
+            };
+        });
+    </script>
+
+</body>
+</html>
