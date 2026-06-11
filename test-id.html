@@ -31,7 +31,7 @@
             const reader = new FileReader();
 
             // Read only the first 4 bytes (enough for most basic formats)
-            const blob = file.slice(0, 4);
+            const blob = file.slice(0, 32);
             reader.readAsArrayBuffer(blob);
 
             reader.onloadend = function(e) {
